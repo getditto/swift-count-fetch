@@ -26,7 +26,6 @@ actor DittoDataFetcher {
     
     nonisolated func fetchAttachmentData(in docs: [DittoDocument], collName: String) {
         Task(priority: .utility) {
-            print("fetchAttachmentData(): await fetchData())")
             await fetchData(in: docs, collName: collName)
         }
     }
@@ -36,7 +35,6 @@ actor DittoDataFetcher {
         
         for doc in docs {
             guard let token = doc["content"].attachmentToken else {
-                print("[DF.docs loop doc contained no token --> continue")
                 continue
             }
             
@@ -69,7 +67,6 @@ actor DittoDataFetcher {
             let docId = docId
             
             guard let self = self else {
-                print("[fetcher \(fetcherId)] callback: NO SELF --> RETURN")
                 return
             }
             
@@ -82,7 +79,6 @@ actor DittoDataFetcher {
                 do {
                     // access data to check for error
                     _ = try attachment.getData()
-                    print("[fetcher.docId \(docId)] success")
                 } catch {
                     print("[fetcher.docId \(docId)] getData() FAIL with error: \(error.localizedDescription)")
                 }
@@ -97,16 +93,11 @@ actor DittoDataFetcher {
     }
 
     private func addFetcher(_ wrapper: FetcherWrapper, docId: String) {
-        print("DF.addFetcher() for docId: \(docId)")
         fetchers[wrapper.id] = wrapper
-        print("DF.addFetcher(): fetchers.count \(fetchers.count)")
     }
 
     func completedFetch(id: String, docId: String) {
-        print("DF.completedFetch() for docId: \(docId)")
         fetchers.removeValue(forKey: id)
-        print("DF.completedFetch(): fetchers.count: \(fetchers.count)")
-        
         if fetchers.isEmpty {
             print("DF.fetchData(): BACKGROUND ATTACHMENT DATA FETCH FINISH: \(Date().description)")
         }

@@ -27,12 +27,6 @@ class DittoService: ObservableObject {
         self.fetcher = DittoDataFetcher(ditto: ditto)
         self.collection = ditto.store[Env.DITTO_COLLECTION]
         syncAllDocs()
-        
-        /* FOR TESTING: force a new sync after 10 seconds
-         
-        forceSyncAfter(.now() + 10)
-         
-         */
     }
     
     func syncAllDocs() {
@@ -55,20 +49,6 @@ class DittoService: ObservableObject {
                 allDocsSubject.send(docs)
             }
     }
-    
-    //TEST
-    func forceSyncAfter(_ someTime: DispatchTime) {
-        DispatchQueue.main.asyncAfter(deadline: someTime) {[weak self] in
-            print("""
-            
-            ==============================================================
-                    DS.init() TEST - timer fired. CALL syncAllDocs()
-            ==============================================================
-            
-            """)
-            self?.syncAllDocs()
-        }
-    }
 }
 
 class DittoInstance: ObservableObject {
@@ -84,8 +64,7 @@ class DittoInstance: ObservableObject {
         let isPreview: Bool = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
         if !isPreview {
             // make sure our log level is set _before_ starting ditto.
-//            DittoLogger.minimumLogLevel = .debug
-            DittoLogger.enabled = false //disabled to watch UI/fetch task log statements
+            DittoLogger.minimumLogLevel = .debug
             
             try! ditto.startSync()
         }
