@@ -28,9 +28,9 @@ class DittoService: ObservableObject {
         self.collection = ditto.store[Env.DITTO_COLLECTION]
         syncAllDocs()
         
-        /* FOR TESTING: force a new sync after 30 seconds
+        /* FOR TESTING: force a new sync after 10 seconds
          
-        forceSyncAfter(.now() + 30)
+        forceSyncAfter(.now() + 10)
          
          */
     }
@@ -46,7 +46,6 @@ class DittoService: ObservableObject {
             .sink{[weak self] docs in
                 guard let self = self, !docs.isEmpty else { return }
                 
-//                print("DS.allDoc.sink: START BACKGROUND ATTACHMENT DATA FETCH: \(Date().description)")
                 fetcher.fetchAttachmentData(
                     in: docs,
                     collName: collection.name

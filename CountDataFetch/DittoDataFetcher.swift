@@ -18,65 +18,38 @@ struct FetcherWrapper {
 actor DittoDataFetcher {
     let ditto: Ditto
     private var fetchers = [String: FetcherWrapper]()
-    private var fetcherTask: Task<Void, Never>?
+    private var fetcherQueue = DispatchQueue(label: "live.ditto.dataFetcherQueue", qos: .utility, attributes: .concurrent)
     
     init(ditto: Ditto) {
         self.ditto = ditto
     }
     
     nonisolated func fetchAttachmentData(in docs: [DittoDocument], collName: String) {
-        Task {
-            if let _ = await fetcherTask {
-                await resetFetch()
-            }
+        Task(priority: .utility) {
+            print("fetchAttachmentData(): await fetchData())")
             await fetchData(in: docs, collName: collName)
         }
     }
     
-    private func fetchData(in docs: [DittoDocument], collName: String) {
-        print("DF.fetchData(): START BACKGROUND ATTACHMENT DATA FETCH: \(Date().description)")
+    private func fetchData(in docs: [DittoDocument], collName: String) async {
+        print("DF.fetchData() --> in: START BACKGROUND ATTACHMENT DATA FETCH: \(Date().description)")
         
-        fetcherTask = Task (priority: .background) {
+        for doc in docs {
+            guard let token = doc["content"].attachmentToken else {
+                print("[DF.docs loop doc contained no token --> continue")
+                continue
+            }
             
-            await withTaskGroup(of: Void.self) {[weak self] taskGroup in
-                guard let self = self else {
-                    print("[taskGroup.loop] -- top of withTaskGroup --: NO SELF --> RETURN")
-                    return
-                }
-                guard let task = await fetcherTask, !task.isCancelled else {
-                    print("taskGroup detected fetcherTask CANCELED. CALL taskGroup.cancelAll() --> RETURN")
-                    taskGroup.cancelAll()
-                    return
-                }
-                
-                for doc in docs {
-                    guard let token = doc["content"].attachmentToken else {
-                        print("[taskGroup.loop] doc contained no token --> continue")
-                        continue
-                    }
-                    
-                    guard taskGroup.addTaskUnlessCancelled(
-                        operation: {[weak self] in
-                            guard let self = self else {
-                                print("top of addTaskUnlessCancelled: NO SELF --> RETURN")
-                                return
-                            }
-                            
-                            let fetcherId = UUID().uuidString
-                            if let fetcher = await fetcher(
-                                token: token,
-                                collName: collName,
-                                id: fetcherId,
-                                docId: doc.id.stringValue
-                            ) {
-                                let fetcherWrapper = FetcherWrapper(id: fetcherId, fetcher: fetcher)
-                                await self.addFetcher(fetcherWrapper)
-                            }
-                        }) else {
-                        print("taskGroup.addTaskUnlessCancelled: detected CANCELLED --> RETURN")
-                        return
-                    }
-                }
+            let fetcherId = UUID().uuidString
+            let docId = doc.id.stringValue
+            if let fetcher = await fetcher(
+                token: token,
+                collName: collName,
+                id: fetcherId,
+                docId: docId
+            ) {
+                let fetcherWrapper = FetcherWrapper(id: fetcherId, fetcher: fetcher)
+                addFetcher(fetcherWrapper, docId: docId)
             }
         }
     }
@@ -87,22 +60,16 @@ actor DittoDataFetcher {
         id: String,
         docId: String
     ) async -> DittoAttachmentFetcher? {
-        guard let task = fetcherTask, !task.isCancelled else {
-            print("[taskGroup.fetcher for docId: \(docId)] detected CANCELED task BEFORE fetch call --> RETURN")
-            return nil
-        }
         
-        return ditto.store[collName].fetchAttachment(token: token) {[weak self] event in
+        return ditto.store[collName].fetchAttachment(
+            token: token,
+            deliverOn: fetcherQueue
+        ) {[weak self] event in
             let fetcherId = id
             let docId = docId
             
-            guard !task.isCancelled else {
-                print("[taskGroup.fetcher \(fetcherId)] detected CANCELLED task IN fetch callback --> RETURN")
-                return
-            }
-            
             guard let self = self else {
-                print("taskGroup.fetcher \(fetcherId)] callback: NO SELF --> RETURN")
+                print("[fetcher \(fetcherId)] callback: NO SELF --> RETURN")
                 return
             }
             
@@ -115,147 +82,33 @@ actor DittoDataFetcher {
                 do {
                     // access data to check for error
                     _ = try attachment.getData()
-                    print("[taskGroup.fetcher.docId \(docId)] success")
+                    print("[fetcher.docId \(docId)] success")
                 } catch {
-                    print("[taskGroup.fetcher.docId \(docId)] getData() FAIL with error: \(error.localizedDescription)")
+                    print("[fetcher.docId \(docId)] getData() FAIL with error: \(error.localizedDescription)")
                 }
             default:
-                print("[taskGroup.fetcher.docId \(docId)] ERROR .default case for event")
+                print("[fetcher.docId \(docId)] ERROR .default case for event")
             }
 
-            Task {
-                await self.completedFetch(id: id, docId: docId)
+            Task(priority: .utility) {
+                await self.completedFetch(id: fetcherId, docId: docId)
             }
         }
     }
-        
-    private func resetFetch() {
-        print("reset() --> in")
-        if let task = fetcherTask {
-            print("\n\n<------------------------- SET TASK CANCEL --------------------------->\n\n")
-            task.cancel()
-            cancelFetchers()
-            fetchers.removeAll()
-        }
-    }
-    
-    private func addFetcher(_ wrapper: FetcherWrapper) {
+
+    private func addFetcher(_ wrapper: FetcherWrapper, docId: String) {
+        print("DF.addFetcher() for docId: \(docId)")
         fetchers[wrapper.id] = wrapper
+        print("DF.addFetcher(): fetchers.count \(fetchers.count)")
     }
 
     func completedFetch(id: String, docId: String) {
-        if let wrapper = fetchers[id] {
-            print("DF.fetcher complete for docId: \(docId)")
-            fetchers.removeValue(forKey: id)
-        }
-    }
-
-    private func cancelFetchers() {
-        print("DF.cancelFetchers() --> in")
-        for (_, wrapper) in fetchers {
-            wrapper.fetcher.stop()
-        }
-    }
-}
-
-/* initial attempted implementation
-private func fetchData(in docs: [DittoDocument], collName: String) {
-    print("DF.fetchData(): START BACKGROUND ATTACHMENT DATA FETCH: \(Date().description)")
-    
-    fetcherTask = Task (priority: .background) {
+        print("DF.completedFetch() for docId: \(docId)")
+        fetchers.removeValue(forKey: id)
+        print("DF.completedFetch(): fetchers.count: \(fetchers.count)")
         
-        await withTaskGroup(of: Void.self) {[weak self] taskGroup in
-            guard let self = self else {
-                print("[taskGroup.loop] -- top of withTaskGroup --: NO SELF --> RETURN")
-                return
-            }
-            guard let task = await fetcherTask, !task.isCancelled else {
-                print("taskGroup detected fetcherTask CANCELED. CALL taskGroup.cancelAll() --> RETURN")
-                taskGroup.cancelAll()
-                return
-            }
-            
-            for doc in docs {
-                guard let token = doc["content"].attachmentToken else {
-                    print("[taskGroup.loop] doc contained no token --> continue")
-                    continue
-                }
-                
-                guard taskGroup.addTaskUnlessCancelled(
-                    operation: {[weak self] in
-                        guard let self = self else {
-                            print("top of addTaskUnlessCancelled: NO SELF --> RETURN")
-                            return
-                        }
-                        
-                        let fetcherId = UUID().uuidString
-                        if let fetcher = await fetcher(
-                            token: token,
-                            collName: collName,
-                            id: fetcherId,
-                            docId: doc.id.stringValue
-                        ) {
-                            let fetcherWrapper = FetcherWrapper(id: fetcherId, fetcher: fetcher)
-                            await self.addFetcher(fetcherWrapper)
-                        }
-                    }) else {
-                    print("taskGroup.addTaskUnlessCancelled: detected CANCELLED --> break")
-                    return
-                }
-            }
+        if fetchers.isEmpty {
+            print("DF.fetchData(): BACKGROUND ATTACHMENT DATA FETCH FINISH: \(Date().description)")
         }
     }
 }
-
-private func fetcher(token: DittoAttachmentToken, collName: String, id: String, docId: String) async -> DittoAttachmentFetcher? {
-    
-    guard let task = fetcherTask, !task.isCancelled else {
-        print("[taskGroup.fetcher for docId: \(docId)] detected CANCELED task BEFORE fetch call --> RETURN")
-        return nil
-    }
-    
-    return ditto.store[collName].fetchAttachment(
-        token: token,
-        id: id, //fetcherId,
-        docId: docId,
-        deliverOn: .main,
-//            completion: completion,
-        onFetchEvent: {[weak self] event in
-//            {[weak self] event in
-            let fetcherId = id
-            let docId = docId
-//                let completion = completion
-            
-            guard !task.isCancelled else {
-                print("[taskGroup.fetcher \(fetcherId)] detected CANCELLED task IN fetch callback --> RETURN")
-                return
-            }
-            
-            guard let self = self else {
-                print("taskGroup.fetcher \(fetcherId)] callback: NO SELF --> RETURN")
-                return
-            }
-            
-            switch event {
-            case .progress(let downloadedBytes, let totalBytes):
-                _ = Double(downloadedBytes) / Double(totalBytes)
-//                                print("[taskGroup.fetcher \(fetcherId)] -- PROGRESS -- return")
-                return
-            case .completed(let attachment):
-                do {
-                    // access data to check for error
-                    _ = try attachment.getData()
-                    print("[taskGroup.fetcher.docId \(docId)] success")
-                } catch {
-                    print("[taskGroup.fetcher.docId \(docId)] getData() FAIL with error: \(error.localizedDescription)")
-                }
-            default:
-                print("[taskGroup.fetcher.docId \(docId)] ERROR .default case for event")
-            }
-
-//                completion(fetcherId, docId)
-            Task { await self.completedFetch(id: id, docId: docId) }
-        }
-    )
-}
-*/

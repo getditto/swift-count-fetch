@@ -16,8 +16,9 @@ and subsequently.
 
 Note that fetches for previously synced attachment data is local and therefore very fast, however a 
 first-time download of many documents with attachments data will be slow in proportion to the amount 
-of data and the speed of the internet connection. Also note, that this demo focuses on this bulk 
-attachment data sync and does not implement the use or display of any of the attachment data itself.  
+of attachment data and the speed of the internet connection. Also note, that this demo focuses on 
+this bulk attachment data sync and does not implement the use or display of any of the attachment 
+data itself.  
 
 Addtionally, if the HTTP `count` fetch fails, the count of documents on the list view will be zero 
 and an empty list will be displayed, even though the sync and attachments fetching succeeded.      
@@ -26,8 +27,8 @@ and an empty list will be displayed, even though the sync and attachments fetchi
 This demo assumes greater than zero documents exist in the collection at app launch, otherwise the
 placeholder "Syncing..." view will not dismiss. Also note that over a WiFi connection a sync of
 lightweight documents will be very fast, so to effectively see the described use case in this demo
-ensure there are enough documents to take a few seconds, for example 10K or 20K documents with some 
-attachments.  
+ensure there are enough documents to take at least several seconds, for example 1K documents with 
+some attachments.  
 
 ## Setup and Run    
 1. Clone this repo to a location on your machine, and open in Xcode.    
