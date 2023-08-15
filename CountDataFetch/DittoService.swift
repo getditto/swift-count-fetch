@@ -7,30 +7,45 @@
 //  Copyright © 2023 DittoLive Incorporated. All rights reserved.
 
 import Combine
+import DittoExportLogs
 import DittoSwift
 import SwiftUI
 
 class DittoService: ObservableObject {
+    private static let defaultLoggingOption: DittoLogger.LoggingOptions = .error
+    @Published var loggingOption: DittoLogger.LoggingOptions
+    private var cancellables = Set<AnyCancellable>()
+    
     static var shared = DittoService()
     var ditto = DittoInstance.shared.ditto
     let fetcher: DittoDataFetcher
-    let collection: DittoCollection
+    let sutCollection: DittoCollection
     
     private var allDocsCancellable = AnyCancellable({})
     private var allDocsSubject = CurrentValueSubject<[DittoDocument], Never>([])
-
     func allTestDocsPublisher() -> AnyPublisher<[DittoDocument], Never> {
         allDocsSubject.eraseToAnyPublisher()
     }
     
-    init() {
+    private init() {
         self.fetcher = DittoDataFetcher(ditto: ditto)
-        self.collection = ditto.store[Env.DITTO_COLLECTION]
+        self.sutCollection = ditto.store[Env.DITTO_COLLECTION]
+        
+        // make sure our log level is set _before_ starting ditto.
+        self.loggingOption = Self.storedLoggingOption()
+        
+        $loggingOption
+            .sink {[weak self] option in
+                self?.saveLoggingOption(option)
+                self?.resetLogging()
+            }
+            .store(in: &cancellables)
+
         syncAllDocs()
     }
     
     func syncAllDocs() {
-        self.allDocsCancellable = collection
+        self.allDocsCancellable = sutCollection
             .findAll()
             .liveQueryPublisher()
             .map { docs, _ in
@@ -42,12 +57,50 @@ class DittoService: ObservableObject {
                 
                 fetcher.fetchAttachmentData(
                     in: docs,
-                    collName: collection.name
+                    collName: sutCollection.name
                 )
                 
                 print("DS.allDoc.sink: allDocsSubject.SEND docs.count: \(docs.count)")
                 allDocsSubject.send(docs)
             }
+    }
+}
+
+extension DittoService {
+    enum UserDefaultsKeys: String {
+        case loggingOption = "live.ditto.CountDataFetch.userDefaults.loggingOption"
+    }
+    
+    fileprivate func storedLoggingOption() -> DittoLogger.LoggingOptions {
+        return Self.storedLoggingOption()
+    }
+    // static function for use in init() at launch
+    fileprivate static func storedLoggingOption() -> DittoLogger.LoggingOptions {
+        if let logOption = UserDefaults.standard.object(
+            forKey: UserDefaultsKeys.loggingOption.rawValue
+        ) as? Int {
+            return DittoLogger.LoggingOptions(rawValue: logOption)!
+        } else {
+            return DittoLogger.LoggingOptions(rawValue: defaultLoggingOption.rawValue)!
+        }
+    }
+    
+    fileprivate func saveLoggingOption(_ option: DittoLogger.LoggingOptions) {
+        UserDefaults.standard.set(option.rawValue, forKey: UserDefaultsKeys.loggingOption.rawValue)
+    }
+
+    fileprivate func resetLogging() {
+        let logOption = Self.storedLoggingOption()
+        switch logOption {
+        case .disabled:
+            DittoLogger.enabled = false
+        default:
+            DittoLogger.enabled = true
+            DittoLogger.minimumLogLevel = DittoLogLevel(rawValue: logOption.rawValue)!
+            if let logFileURL = DittoLogManager.shared.logFileURL {
+                DittoLogger.setLogFileURL(logFileURL)
+            }
+        }
     }
 }
 
@@ -63,9 +116,6 @@ class DittoInstance: ObservableObject {
         // Prevent Xcode previews from syncing: non preview simulators and real devices can sync
         let isPreview: Bool = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
         if !isPreview {
-            // make sure our log level is set _before_ starting ditto.
-            DittoLogger.minimumLogLevel = .debug
-            
             try! ditto.startSync()
         }
     }

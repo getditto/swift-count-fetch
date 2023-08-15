@@ -20,7 +20,7 @@ class ContentVM: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        getDocsCount(for: dittoService.collection.name)
+        getDocsCount(for: dittoService.sutCollection.name)
         
         $bigPeerCount
             .receive(on: DispatchQueue.main)
