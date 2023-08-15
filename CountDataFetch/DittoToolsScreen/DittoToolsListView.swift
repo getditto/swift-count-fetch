@@ -49,7 +49,7 @@ struct DittoToolsListView: View {
                     }
                 }
                 Section(header: Text("Exports")) {
-                    NavigationLink(destination: LoggingDetailsView($dittoService.loggingOption)) {
+                    NavigationLink(destination: LoggingDetailsView(loggingOption: $dittoService.loggingOption)) {
                         DittoToolsListItem(title: "Logging", systemImage: "square.split.1x2", color: .green)
                     }
 
