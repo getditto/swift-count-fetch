@@ -16,7 +16,7 @@ struct FetcherWrapper {
 }
 
 actor DittoDataFetcher {
-    let ditto: Ditto
+    private let ditto: Ditto
     private var fetchers = [String: FetcherWrapper]()
     private var fetcherQueue = DispatchQueue(label: "live.ditto.dataFetcherQueue", qos: .utility, attributes: .concurrent)
     

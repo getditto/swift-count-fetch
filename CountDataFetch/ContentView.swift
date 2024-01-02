@@ -20,20 +20,27 @@ class ContentVM: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        getDocsCount(for: dittoService.sutCollection.name)
+        fetchDocsCount()
         
         $bigPeerCount
             .receive(on: DispatchQueue.main)
-            .sink {[weak self] count in
-                guard count > 0 else { return }
-                self?.setupDocsPublisher()
+            .dropFirst()
+            .sink {[weak self] count in                
+                guard let self = self, count > 0 else {
+                    print("ContentVM.bigPeerCount.sink: WARNING: bigPeerCount.count == 0")
+                    self?.isLoading = false
+                    return 
+                }
+                setupDocsPublisher()
             }
             .store(in: &cancellables)
     }
     
     func setupDocsPublisher() {
-        self.docsCancellable = dittoService.allTestDocsPublisher()
+        self.docsCancellable = dittoService.allDocsPublisher()
+            .dropFirst()
             .sink {[weak self] docs in
+
                 /* N.B.
                  This sink will fire initially with zero because the DittoService Combine
                  CurrentValueSubject `allDocsSubject` is initialized with an empty array.
@@ -44,20 +51,23 @@ class ContentVM: ObservableObject {
                  received and all the documents are synced from the Big Peer (or from the local
                  store if they've already synced).
                  */
-                guard let count = self?.bigPeerCount, count > 0, docs.count >= count else { return }
+                guard let count = self?.bigPeerCount, count > 0, docs.count >= count else {
+                    print("ContentView.\(#function): hit count condition")
+                    return 
+                }
 
                 self?.docs = docs
                 self?.isLoading = false
             }
     }
     
-    func getDocsCount(for collectionName: String) {
+    func fetchDocsCount() {
         Task {
             do {
-                let count = try await DocsCounter().fetchCount(from: collectionName)
-                self.bigPeerCount = count
+                let count = try await DocsCounter().fetchCount(from: dittoService.testCollection.name)
+                await MainActor.run { bigPeerCount = count }
             } catch {
-                self.isLoading = false
+                isLoading = false
                 print(error.localizedDescription)
             }
         }

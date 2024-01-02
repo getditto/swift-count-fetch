@@ -39,10 +39,12 @@ playground token.
 4. Generate an HTTP API KEY  
 5. In Terminal, run `cp .env.template .env` at the Xcode project root directory.     
 6. Edit `.env` to add environment variables from the portal as in the following example:     
-```DITTO_APP_ID=a01b2c34-5d6e-7fgh-ijkl-8mno9p0q12r3```  
-```DITTO_PLAYGROUND_TOKEN=a01b2c34-5d6e-7fgh-ijkl-8mno9p0q12r3```      
-```DITTO_API_KEY=a01b2c34-5d6e-7fgh-ijkl-8mno9p0q12r3```   
-```DITTO_COLLECTION=my_attachments_collection_name```  
+````
+DITTO_APP_ID=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+DITTO_PLAYGROUND_TOKEN=XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXX
+DITTO_API_KEY=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+DITTO_COLLECTION=my_attachments_collection_name
+```  
 7. Clean (**Command + Shift + K**), then build (**Command + B**). This will generate `Env.swift`.    
    (repeat #6 if necessary)
 

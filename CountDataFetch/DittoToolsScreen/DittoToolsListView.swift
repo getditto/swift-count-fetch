@@ -17,8 +17,10 @@ import SwiftUI
 
 struct DittoToolsListView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @ObservedObject var dittoService = DittoService.shared
-    private let ditto = DittoService.shared.ditto
+//    @ObservedObject var dittoService = DittoService.shared
+//    private let ditto = DittoService.shared.ditto
+    @ObservedObject var dittoInstance = DittoInstance.shared
+    private let ditto = DittoInstance.shared.ditto
     
     // Export Ditto Directory
     @State private var presentExportDataShare: Bool = false
@@ -49,7 +51,7 @@ struct DittoToolsListView: View {
                     }
                 }
                 Section(header: Text("Exports")) {
-                    NavigationLink(destination: LoggingDetailsView(loggingOption: $dittoService.loggingOption)) {
+                    NavigationLink(destination: LoggingDetailsView(loggingOption: $dittoInstance.loggingOption)) {
                         DittoToolsListItem(title: "Logging", systemImage: "square.split.1x2", color: .green)
                     }
 
