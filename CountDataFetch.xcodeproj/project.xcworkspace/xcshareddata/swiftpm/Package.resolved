@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/getditto/DittoSwiftPackage",
       "state" : {
-        "revision" : "fadaee6942dc0bf6393fd01d8ea028f4064651be",
-        "version" : "4.3.1"
+        "revision" : "be03dc47d1517fb669f173833625262340b4aab8",
+        "version" : "4.5.1"
       }
     },
     {
@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/getditto/DittoSwiftTools.git",
       "state" : {
-        "branch" : "et/clean_v4",
-        "revision" : "3450c73c3c1031614a1f665c4421f172e558ea66"
+        "revision" : "c121a51ce7dba950df94689e3f5a695342883fa0",
+        "version" : "4.4.0"
       }
     },
     {

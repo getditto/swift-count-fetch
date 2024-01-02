@@ -86,18 +86,20 @@ actor DittoDataFetcher {
                 print("[fetcher.docId \(docId)] ERROR .default case for event")
             }
 
-            Task(priority: .utility) {
+            Task(priority: .utility) {                
                 await self.completedFetch(id: fetcherId, docId: docId)
             }
         }
     }
 
     private func addFetcher(_ wrapper: FetcherWrapper, docId: String) {
+        print("ADD fetcher-\(wrapper.id)")
         fetchers[wrapper.id] = wrapper
     }
 
     func completedFetch(id: String, docId: String) {
         fetchers.removeValue(forKey: id)
+        print("COMPLETED: fetcher-\(id)  Remove from fetchers collection")
         if fetchers.isEmpty {
             print("DF.fetchData(): BACKGROUND ATTACHMENT DATA FETCH FINISH: \(Date().description)")
         }
