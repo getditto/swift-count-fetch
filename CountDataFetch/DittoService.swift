@@ -11,13 +11,10 @@ import DittoExportLogs
 import DittoSwift
 import SwiftUI
 
-class DittoService: ObservableObject {
-//    private static let defaultLoggingOption: DittoLogger.LoggingOptions = .error
-//    @Published var loggingOption: DittoLogger.LoggingOptions
-//    private var cancellables = Set<AnyCancellable>()
-    
+class DittoService: ObservableObject {    
     static var shared = DittoService()
     var ditto = DittoInstance.shared.ditto
+    
     let fetcher: DittoDataFetcher
     let testCollection: DittoCollection
     
@@ -30,17 +27,6 @@ class DittoService: ObservableObject {
     private init() {
         self.fetcher = DittoDataFetcher(ditto: ditto)
         self.testCollection = ditto.store[Env.DITTO_COLLECTION]
-        
-//        // make sure our log level is set _before_ starting ditto.
-//        self.loggingOption = Self.storedLoggingOption()
-//        
-//        $loggingOption
-//            .sink {[weak self] option in
-//                self?.saveLoggingOption(option)
-//                self?.resetLogging()
-//            }
-//            .store(in: &cancellables)
-
         syncAllDocs()
     }
     
@@ -49,7 +35,6 @@ class DittoService: ObservableObject {
             .findAll()
             .liveQueryPublisher()
             .map { docs, _ in
-                print("DS.syncAllDoc.map: docs.count: \(docs.count)")
                 return docs.map { $0 }
             }
             .sink{[weak self] docs in
@@ -60,7 +45,6 @@ class DittoService: ObservableObject {
                     collName: testCollection.name
                 )
                 
-                print("DS.allDoc.sink: allDocsSubject.SEND docs.count: \(docs.count)")
                 allDocsSubject.send(docs)
             }
     }

@@ -17,8 +17,6 @@ import SwiftUI
 
 struct DittoToolsListView: View {
     @Environment(\.colorScheme) private var colorScheme
-//    @ObservedObject var dittoService = DittoService.shared
-//    private let ditto = DittoService.shared.ditto
     @ObservedObject var dittoInstance = DittoInstance.shared
     private let ditto = DittoInstance.shared.ditto
     

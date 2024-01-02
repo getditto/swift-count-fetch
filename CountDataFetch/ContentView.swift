@@ -42,17 +42,12 @@ class ContentVM: ObservableObject {
             .sink {[weak self] docs in
 
                 /* N.B.
-                 This sink will fire initially with zero because the DittoService Combine
-                 CurrentValueSubject `allDocsSubject` is initialized with an empty array.
-                 
                  If there are zero documents in the queried Big Peer collection, the following guard
                  condition will cause the placeholder "Syncing..." overlay view to hang. Otherwise,
                  the "Syncing..." view will be dismissed once the HTTP `count` API results are
-                 received and all the documents are synced from the Big Peer (or from the local
-                 store if they've already synced).
+                 received.
                  */
                 guard let count = self?.bigPeerCount, count > 0, docs.count >= count else {
-                    print("ContentView.\(#function): hit count condition")
                     return 
                 }
 
